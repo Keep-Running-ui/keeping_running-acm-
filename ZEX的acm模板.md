@@ -1,5 +1,9 @@
 # ZEX的acm模板
 
+[TOC]
+
+
+
 ## 图论
 
 ### 表达式树
@@ -331,6 +335,69 @@ int main() {
 }
 ```
 
+### tarjan(点强连通)
+
+```c++
+#include <bits/stdc++.h>
+using namespace std;
+const int mxn = 2e5 + 10;
+const int N = 1e6 + 10;
+vector<int> e[mxn];
+vector<int> vec[mxn];
+vector<vector<int>> scc;
+stack<int> stk;
+int n, m, mod, idx, cnt; 
+int bel[mxn], ins[mxn], dfn[mxn], low[mxn]; 
+
+void tarjan(int u) {
+	ins[u] = true;
+	dfn[u] = low[u] = ++ idx;
+	stk.push(u);
+	for(auto v : e[u]) {
+		if(!dfn[v]) tarjan(v);
+		if(ins[v]) low[u] = min(low[u], low[v]);
+	}
+	if(dfn[u] == low[u]) {
+		++ cnt; 
+		while(true) {
+			int v = stk.top();
+			ins[v] = false;
+			stk.pop();
+			bel[v] = cnt; 
+			vec[cnt].push_back(v);
+			if(v == u) break; 
+		}
+	}
+}
+```
+
+
+
+### 求割边
+
+```c++
+#include <bits/stdc++.h>
+using namespace std;
+const int N = 2e5 + 10;
+vector<vector<int>> scc;
+vector<pair<int, int>> e[N];
+int dfn[N],bel[N], low[N], n, m, idx;
+vector<int> bridge;
+void dfs(int u, int id) {
+    dfn[u] = low[u] = ++ idx;
+    for(auto pii : e[u]) {
+        auto v = pii.first, id2 = pii.second;
+        if(!dfn[v]) dfs(v, id2);
+        if(id != id2) low[u] = min(low[u], low[v]);
+    }
+    if(dfn[u] == low[u] && id != -1) {
+        bridge.push_back(id);
+    }
+}
+```
+
+
+
 ### tarjan(点双连通)
 
 ```c++
@@ -481,6 +548,122 @@ struct FlowGraph {
 
 ```
 
+### 最小费用流
+
+```c++
+#include <bits/stdc++.h>
+using namespace std;
+using ll = long long;
+
+const int V = 20100;
+const int E = 201000;
+
+template<typename T>
+struct MinCostGraph {
+	int s, t, vtot;
+	int head[V], etot;
+	T dis[V], flow, cost;
+	int pre[V];
+	bool vis[V];
+
+	struct edge {
+		int v, nxt;
+		T f, c;
+	} e[E * 2];
+	void addedge(int u,int v, T f, T c, T f2 = 0){
+		e[etot]= {v, head[u], f, c}; head[u] = etot++;
+		e[etot]= {u, head[v], f2, -c}; head[v] = etot++;
+	}
+
+	bool spfa() {
+		T inf = numeric_limits<T>::max() / 2;
+		for (int i = 1; i <= vtot; i++) {
+			dis[i] = inf;
+			vis[i] = false;
+			pre[i] = -1;
+		}
+		dis[s] = 0;
+		vis[s] = true;
+		queue<int> q;
+		q.push(s);
+		while (!q.empty()) {
+			int u = q.front();
+			for (int i = head[u]; ~i; i = e[i].nxt) {
+				int v = e[i].v;
+				if (e[i].f && dis[v] > dis[u] + e[i].c) {
+					dis[v] = dis[u] + e[i].c;
+					pre[v] = i;
+					if (!vis[v]) {
+						vis[v] = 1;
+						q.push(v);
+					}
+				}
+			}
+			q.pop();
+			vis[u] = false;
+		}
+		return dis[t] != inf;
+	}
+
+	void augment() {
+		int u = t;
+		T f = numeric_limits<T>::max();
+		while (~pre[u]) {
+			f = min(f, e[pre[u]].f);
+			u = e[pre[u] ^ 1].v;
+		}
+		flow += f;
+		cost += f * dis[t];
+		u = t;
+		while (~pre[u]) {
+			e[pre[u]].f -= f;
+			e[pre[u] ^ 1].f += f;
+			u = e[pre[u] ^ 1].v;
+		}
+	}
+
+	pair<T, T> solve() {
+		flow = 0;
+		cost = 0;
+		while (spfa()) augment();
+		return {flow, cost};
+	}
+	void init(int s_, int t_, int vtot_) {
+		s = s_;
+		t = t_;
+		vtot = vtot_;
+		etot = 0;
+		for (int i = 1; i <= vtot; i++) head[i] = -1;
+	}
+};
+
+MinCostGraph<int> g;
+int n, m;
+array<int, 3> e[E];
+int main() {
+	scanf("%d%d", &n, &m);
+	g.init(1, n, n);
+	for (int i = 1; i <= m; i++) {
+		int u, v, f, c;
+		scanf("%d%d%d%d", &u, &v, &f, &c);
+		g.addedge(u, v, f, c);
+	}
+	auto [flow, cost] = g.solve();
+	printf("%d %d\n", flow, cost);
+}
+```
+
+### 二分匹配
+
+$$
+hall定理：对于一个二分图存在完备匹配， 当且仅当对于左边\forall S，S的邻居集合的并 N（S）
+保证：|N(S)|\geqslant|S|
+$$
+
+$$
+Dilworth定理：最大反链=最小链覆盖（可相交）
+$$
+
 
 
 ## 数论
@@ -596,22 +779,13 @@ ll get_phi(ll n) {
 在欧拉筛的基础上求1~n的欧拉函数
 
 ```c++
-using ll = long long;
-const int maxn = 1e7 + 10;
-int prime[maxn + 5], tot, phi[maxn + 5], not_prime[maxn + 10];
-void ol_phi(int n) {
-    phi[1] = 1;
-    for(int i = 2; i <= n; i ++) {
-        if(not_prime[i]) prime[++ tot] = i, phi[i] = i - 1;
-        for(int j = 1; j <= tot && i * prime[j] <= n; j ++) {
-            not_prime[i * prime[j]] = 1;
-            if(i % prime[j] == 0) {
-                phi[i * prime[j]] = phi[i] * prime[j];
-                break;
-            }
-            phi[i * prime[j]] = phi[i] * (prime[j] - 1);
-        }
-    }
+void init(int n) {
+    for (int i = 1; i <= n; i++)
+        phi[i] = i; // 除1外没有数的欧拉函数是本身，所以如果phi[i] = i则说明未被筛到
+    for (int i = 2; i <= n; i++)
+        if (phi[i] == i) // 未被筛到
+            for (int j = i; j <= n; j += i) // 所有含有该因子的数都进行一次操作
+                phi[j] = phi[j] / i * (i - 1);
 }
 ```
 
@@ -686,11 +860,105 @@ for(int i = 1; i <= tot; i ++) {
 
 最小的$x$满足$a^x=1(\mod p)$
 
+### MEX
+
+```c++
+int cot[N];
+set<int>st;
+int m, op, x;
+void slove() {
+    for (int i = 0; i < N; i++)st.insert(i);
+    cin >> m;
+    while (m--) {
+        cin >> op;
+        if (op == 0) {//添加
+            cin >> x;
+            if (cot[x] == 0) {
+                st.erase(x);
+            }
+            cot[x]++;
+        }
+        else if (op == 1) {//查询
+            cout << *st.begin() << endl;
+        }
+        else {//删除
+            cin >> x;
+            if (cot[x] == 1) {
+                st.insert(x);
+            }
+            cot[x]--;
+        }
+    }
+}
+```
+
+
+
+### 矩阵快速幂
+
+```c++
+class Mat
+{
+    #define inc(x,y) ((x+y>=P)?x+y-P:x+y)
+	#define dec(x,y) ((x-y<0)?x-y+P:x-y)
+    static const int N=105;
+private:
+	int a[2][2]={};
+public:
+//basic declare
+    size_t n=0,m=0;
+    Mat(){}
+	Mat(int n_,int m_):n(n_),m(m_){}
+    Mat &operator=(const initializer_list<initializer_list<int>>&t)
+    {
+        n=t.size(),m=t.begin()->size();
+        for(auto it=t.begin();it!=t.end();it++)
+            copy(it->begin(),it->end(),a[it-t.begin()]);
+        return *this;
+    }
+    Mat(const initializer_list<initializer_list<int>>&t){*this=t;}
+    int *operator[](size_t i){return a[i];}
+    const int *operator[](size_t i) const{return a[i];}
+//operator
+    Mat &operator*=(const Mat &b)
+    {
+        assert(m==b.n);
+        Mat c(n,b.m);
+        for(int i=0;i<n;i++)
+            for(int j=0;j<b.m;j++)
+                for(int k=0;k<m;k++)
+                    (c[i][j]+=a[i][k]*b[k][j]%mod)%=mod;
+        return *this=c;
+    }
+    friend Mat operator*(Mat a,const Mat &b){return a*=b;}
+    Mat &operator^(long long b)
+    {
+        assert(n==m);
+        Mat c;
+        c.identity(n);
+        while(b)
+        {
+            if(b&1) c*=(*this);
+            b>>=1,(*this)*=(*this);
+        }
+        return *this=c;
+    }
+    void identity(const size_t &t)
+    {
+        n=m=t;
+        for(int i=0;i<n;i++) 
+            for(int j=0;j<n;j++)
+                a[i][j]=(i==j);
+    }
+};
+```
+
 
 
 ### FFT快速傅里叶变换
 
 ```c++
+const db Pi = acos(-1);
 int n, m;
 struct CP {
     CP (double xx = 0, double yy = 0) {x = xx, y = yy;}
@@ -733,6 +1001,497 @@ int main() {
     fft(f, 0);
     for(int i = 0; i <= m; i ++) printf("%d ", (int) (f[i].x / n + 0.49));
     return 0;
+}
+
+```
+
+### fastfft
+
+````c++
+// FFT_MAXN = 2^k
+// fft_init() to precalc FFT_MAXN-th roots
+
+typedef long double db;
+const int FFT_MAXN=262144;
+const db pi=acos(-1.);
+struct cp{
+	db a,b;
+	cp operator+(const cp&y)const{return (cp){a+y.a,b+y.b};}
+	cp operator-(const cp&y)const{return (cp){a-y.a,b-y.b};}
+	cp operator*(const cp&y)const{return (cp){a*y.a-b*y.b,a*y.b+b*y.a};}
+	cp operator!()const{return (cp){a,-b};};
+}nw[FFT_MAXN+1];int bitrev[FFT_MAXN];
+void dft(cp*a,int n,int flag=1){
+	int d=0;while((1<<d)*n!=FFT_MAXN)d++;
+	rep(i,0,n)if(i<(bitrev[i]>>d))swap(a[i],a[bitrev[i]>>d]);
+	for (int l=2;l<=n;l<<=1){
+		int del=FFT_MAXN/l*flag;
+		for (int i=0;i<n;i+=l){
+			cp *le=a+i,*ri=a+i+(l>>1),*w=flag==1?nw:nw+FFT_MAXN;
+			rep(k,0,l>>1){
+				cp ne=*ri**w;
+				*ri=*le-ne,*le=*le+ne;
+				le++,ri++,w+=del;
+			}
+		}
+	}
+	if(flag!=1)rep(i,0,n)a[i].a/=n,a[i].b/=n;
+}
+void fft_init(){
+	int L=0;while((1<<L)!=FFT_MAXN)L++;
+	bitrev[0]=0;rep(i,1,FFT_MAXN)bitrev[i]=bitrev[i>>1]>>1|((i&1)<<(L-1));
+	nw[0]=nw[FFT_MAXN]=(cp){1,0};
+	rep(i,0,FFT_MAXN+1)nw[i]=(cp){cosl(2*pi/FFT_MAXN*i),sinl(2*pi/FFT_MAXN*i)};	//very slow
+}
+
+void convo(db*a,int n,db*b,int m,db*c){
+	static cp f[FFT_MAXN>>1],g[FFT_MAXN>>1],t[FFT_MAXN>>1];
+	int N=2;while(N<=n+m)N<<=1;
+	rep(i,0,N)
+		if(i&1){
+			f[i>>1].b=(i<=n)?a[i]:0.0;
+			g[i>>1].b=(i<=m)?b[i]:0.0;
+		}else{
+			f[i>>1].a=(i<=n)?a[i]:0.0;
+			g[i>>1].a=(i<=m)?b[i]:0.0;
+		}
+	dft(f,N>>1);dft(g,N>>1);
+	int del=FFT_MAXN/(N>>1);
+	cp qua=(cp){0,0.25},one=(cp){1,0},four=(cp){4,0},*w=nw;
+	rep(i,0,N>>1){
+		int j=i?(N>>1)-i:0;
+		t[i]=(four*!(f[j]*g[j])-(!f[j]-f[i])*(!g[j]-g[i])*(one+*w))*qua;
+		w+=del;
+	}
+	dft(t,N>>1,-1);
+	rep(i,0,n+m+1)c[i]=(i&1)?t[i>>1].a:t[i>>1].b;
+}
+
+void mul(int *a,int *b,int n){// n<=N, 0<=a[i],b[i]<mo
+	static cp f[N],g[N],t[N],r[N];
+	int nn=2;while(nn<=n+n)nn<<=1;
+	rep(i,0,nn){
+		f[i]=(i<=n)?(cp){(db)(a[i]>>15),(db)(a[i]&32767)}:(cp){0,0};
+		g[i]=(i<=n)?(cp){(db)(b[i]>>15),(db)(b[i]&32767)}:(cp){0,0};
+	}
+	swap(n,nn);
+	dft(f,n,1);dft(g,n,1);
+	rep(i,0,n){
+		int j=i?n-i:0;
+		t[i]=( (f[i]+!f[j])*(!g[j]-g[i]) + (!f[j]-f[i])*(g[i]+!g[j]) )*(cp){0,0.25};
+		r[i]=(!f[j]-f[i])*(!g[j]-g[i])*(cp){-0.25,0} + (cp){0,0.25}*(f[i]+!f[j])*(g[i]+!g[j]);
+	}
+	dft(t,n,-1); dft(r,n,-1);
+	rep(i,0,n)a[i]=( (ll(t[i].a+0.5)%mo<<15) + ll(r[i].a+0.5) + (ll(r[i].b+0.5)%mo<<30) )%mo;
+}
+
+````
+
+### ntt
+
+```c++
+const int md = 998244353;
+
+inline void add(int &x, int y) {
+  x += y;
+  if (x >= md) {
+    x -= md;
+  }
+}
+
+inline void sub(int &x, int y) {
+  x -= y;
+  if (x < 0) {
+    x += md;
+  }
+}
+
+inline int mul(int x, int y) {
+  return (long long) x * y % md;
+}
+
+inline int power(int x, int y) {
+  int res = 1;
+  for (; y; y >>= 1, x = mul(x, x)) {
+    if (y & 1) {
+      res = mul(res, x);
+    }
+  }
+  return res;
+}
+
+inline int inv(int a) {
+  a %= md;
+  if (a < 0) {
+    a += md;
+  }
+  int b = md, u = 0, v = 1;
+  while (a) {
+    int t = b / a;
+    b -= t * a;
+    swap(a, b);
+    u -= t * v;
+    swap(u, v);
+  }
+  if (u < 0) {
+    u += md;
+  }
+  return u;
+}
+
+namespace ntt {
+int base = 1, root = -1, max_base = -1;
+vector<int> rev = {0, 1}, roots = {0, 1};
+
+void init() {
+  int temp = md - 1;
+  max_base = 0;
+  while (temp % 2 == 0) {
+    temp >>= 1;
+    ++max_base;
+  }
+  root = 2;
+  while (true) {
+    if (power(root, 1 << max_base) == 1 && power(root, 1 << (max_base - 1)) != 1) {
+      break;
+    }
+    ++root;
+  }
+}
+
+void ensure_base(int nbase) {
+  if (max_base == -1) {
+    init();
+  }
+  if (nbase <= base) {
+    return;
+  }
+  assert(nbase <= max_base);
+  rev.resize(1 << nbase);
+  for (int i = 0; i < 1 << nbase; ++i) {
+    rev[i] = (rev[i >> 1] >> 1) | ((i & 1) << (nbase - 1));
+  }
+  roots.resize(1 << nbase);
+  while (base < nbase) {
+    int z = power(root, 1 << (max_base - 1 - base));
+    for (int i = 1 << (base - 1); i < 1 << base; ++i) {
+      roots[i << 1] = roots[i];
+      roots[i << 1 | 1] = mul(roots[i], z);
+    }
+    ++base;
+  }
+}
+
+void dft(vector<int> &a) {
+  int n = a.size(), zeros = __builtin_ctz(n);
+  ensure_base(zeros);
+  int shift = base - zeros;
+  for (int i = 0; i < n; ++i) {
+    if (i < rev[i] >> shift) {
+      swap(a[i], a[rev[i] >> shift]);
+    }
+  }
+  for (int i = 1; i < n; i <<= 1) {
+    for (int j = 0; j < n; j += i << 1) {
+      for (int k = 0; k < i; ++k) {
+        int x = a[j + k], y = mul(a[j + k + i], roots[i + k]);
+        a[j + k] = (x + y) % md;
+        a[j + k + i] = (x + md - y) % md;
+      }
+    }
+  }
+}
+
+vector<int> multiply(vector<int> a, vector<int> b) {
+  int need = a.size() + b.size() - 1, nbase = 0;
+  while (1 << nbase < need) {
+    ++nbase;
+  }
+  ensure_base(nbase);
+  int sz = 1 << nbase;
+  a.resize(sz);
+  b.resize(sz);
+  bool equal = a == b;
+  dft(a);
+  if (equal) {
+    b = a;
+  } else {
+    dft(b);
+  }
+  int inv_sz = inv(sz);
+  for (int i = 0; i < sz; ++i) {
+    a[i] = mul(mul(a[i], b[i]), inv_sz);
+  }
+  reverse(a.begin() + 1, a.end());
+  dft(a);
+  a.resize(need);
+  return a;
+}
+
+vector<int> inverse(vector<int> a) {
+  int n = a.size(), m = (n + 1) >> 1;
+  if (n == 1) {
+    return vector<int>(1, inv(a[0]));
+  } else {
+    vector<int> b = inverse(vector<int>(a.begin(), a.begin() + m));
+    int need = n << 1, nbase = 0;
+    while (1 << nbase < need) {
+      ++nbase;
+    }
+    ensure_base(nbase);
+    int sz = 1 << nbase;
+    a.resize(sz);
+    b.resize(sz);
+    dft(a);
+    dft(b);
+    int inv_sz = inv(sz);
+    for (int i = 0; i < sz; ++i) {
+      a[i] = mul(mul(md + 2 - mul(a[i], b[i]), b[i]), inv_sz);
+    }
+    reverse(a.begin() + 1, a.end());
+    dft(a);
+    a.resize(n);
+    return a;
+  }
+}
+}
+
+using ntt::multiply;
+using ntt::inverse;
+
+vector<int>& operator += (vector<int> &a, const vector<int> &b) {
+  if (a.size() < b.size()) {
+    a.resize(b.size());
+  }
+  for (int i = 0; i < b.size(); ++i) {
+    add(a[i], b[i]);
+  }
+  return a;
+}
+
+vector<int> operator + (const vector<int> &a, const vector<int> &b) {
+  vector<int> c = a;
+  return c += b;
+}
+
+vector<int>& operator -= (vector<int> &a, const vector<int> &b) {
+  if (a.size() < b.size()) {
+    a.resize(b.size());
+  }
+  for (int i = 0; i < b.size(); ++i) {
+    sub(a[i], b[i]);
+  }
+  return a;
+}
+
+vector<int> operator - (const vector<int> &a, const vector<int> &b) {
+  vector<int> c = a;
+  return c -= b;
+}
+
+vector<int>& operator *= (vector<int> &a, const vector<int> &b) {
+  if (min(a.size(), b.size()) < 128) {
+    vector<int> c = a;
+    a.assign(a.size() + b.size() - 1, 0);
+    for (int i = 0; i < c.size(); ++i) {
+      for (int j = 0; j < b.size(); ++j) {
+        add(a[i + j], mul(c[i], b[j]));
+      }
+    }
+  } else {
+    a = multiply(a, b);
+  }
+  return a;
+}
+
+vector<int> operator * (const vector<int> &a, const vector<int> &b) {
+  vector<int> c = a;
+  return c *= b;
+}
+
+vector<int>& operator /= (vector<int> &a, const vector<int> &b) {
+  int n = a.size(), m = b.size();
+  if (n < m) {
+    a.clear();
+  } else {
+    vector<int> c = b;
+    reverse(a.begin(), a.end());
+    reverse(c.begin(), c.end());
+    c.resize(n - m + 1);
+    a *= inverse(c);
+    a.erase(a.begin() + n - m + 1, a.end());
+    reverse(a.begin(), a.end());
+  }
+  return a;
+}
+
+vector<int> operator / (const vector<int> &a, const vector<int> &b) {
+  vector<int> c = a;
+  return c /= b;
+}
+
+vector<int>& operator %= (vector<int> &a, const vector<int> &b) {
+  int n = a.size(), m = b.size();
+  if (n >= m) {
+    vector<int> c = (a / b) * b;
+    a.resize(m - 1);
+    for (int i = 0; i < m - 1; ++i) {
+      sub(a[i], c[i]);
+    }
+  }
+  return a;
+}
+
+vector<int> operator % (const vector<int> &a, const vector<int> &b) {
+  vector<int> c = a;
+  return c %= b;
+}
+
+vector<int> derivative(const vector<int> &a) {
+  int n = a.size();
+  vector<int> b(n - 1);
+  for (int i = 1; i < n; ++i) {
+    b[i - 1] = mul(a[i], i);
+  }
+  return b;
+}
+
+vector<int> primitive(const vector<int> &a) {
+  int n = a.size();
+  vector<int> b(n + 1), invs(n + 1);
+  for (int i = 1; i <= n; ++i) {
+    invs[i] = i == 1 ? 1 : mul(md - md / i, invs[md % i]);
+    b[i] = mul(a[i - 1], invs[i]);
+  }
+  return b;
+}
+
+vector<int> logarithm(const vector<int> &a) {
+  vector<int> b = primitive(derivative(a) * inverse(a));
+  b.resize(a.size());
+  return b;
+}
+
+vector<int> exponent(const vector<int> &a) {
+  vector<int> b(1, 1);
+  while (b.size() < a.size()) {
+    vector<int> c(a.begin(), a.begin() + min(a.size(), b.size() << 1));
+    add(c[0], 1);
+    vector<int> old_b = b;
+    b.resize(b.size() << 1);
+    c -= logarithm(b);
+    c *= old_b;
+    for (int i = b.size() >> 1; i < b.size(); ++i) {
+      b[i] = c[i];
+    }
+  }
+  b.resize(a.size());
+  return b;
+}
+
+vector<int> power(vector<int> a, int m) {
+  int n = a.size(), p = -1;
+  vector<int> b(n);
+  for (int i = 0; i < n; ++i) {
+    if (a[i]) {
+      p = i;
+      break;
+    }
+  }
+  if (p == -1) {
+    b[0] = !m;
+    return b;
+  }
+  if ((long long) m * p >= n) {
+    return b;
+  }
+  int mu = power(a[p], m), di = inv(a[p]);
+  vector<int> c(n - m * p);
+  for (int i = 0; i < n - m * p; ++i) {
+    c[i] = mul(a[i + p], di);
+  }
+  c = logarithm(c);
+  for (int i = 0; i < n - m * p; ++i) {
+    c[i] = mul(c[i], m);
+  }
+  c = exponent(c);
+  for (int i = 0; i < n - m * p; ++i) {
+    b[i + m * p] = mul(c[i], mu);
+  }
+  return b;
+}
+
+vector<int> sqrt(const vector<int> &a) {
+  vector<int> b(1, 1);
+  while (b.size() < a.size()) {
+    vector<int> c(a.begin(), a.begin() + min(a.size(), b.size() << 1));
+    vector<int> old_b = b;
+    b.resize(b.size() << 1);
+    c *= inverse(b);
+    for (int i = b.size() >> 1; i < b.size(); ++i) {
+      b[i] = mul(c[i], (md + 1) >> 1);
+    }
+  }
+  b.resize(a.size());
+  return b;
+}
+
+vector<int> multiply_all(int l, int r, vector<vector<int>> &all) {
+  if (l > r) {
+    return vector<int>();
+  } else if (l == r) {
+    return all[l];
+  } else {
+    int y = (l + r) >> 1;
+    return multiply_all(l, y, all) * multiply_all(y + 1, r, all);
+  }
+}
+
+vector<int> evaluate(const vector<int> &f, const vector<int> &x) {
+  int n = x.size();
+  if (!n) {
+    return vector<int>();
+  }
+  vector<vector<int>> up(n * 2);
+  for (int i = 0; i < n; ++i) {
+    up[i + n] = vector<int>{(md - x[i]) % md, 1};
+  }
+  for (int i = n - 1; i; --i) {
+    up[i] = up[i << 1] * up[i << 1 | 1];
+  }
+  vector<vector<int>> down(n * 2);
+  down[1] = f % up[1];
+  for (int i = 2; i < n * 2; ++i) {
+    down[i] = down[i >> 1] % up[i];
+  }
+  vector<int> y(n);
+  for (int i = 0; i < n; ++i) {
+    y[i] = down[i + n][0];
+  }
+  return y;
+}
+
+vector<int> interpolate(const vector<int> &x, const vector<int> &y) {
+  int n = x.size();
+  vector<vector<int>> up(n * 2);
+  for (int i = 0; i < n; ++i) {
+    up[i + n] = vector<int>{(md - x[i]) % md, 1};
+  }
+  for (int i = n - 1; i; --i) {
+    up[i] = up[i << 1] * up[i << 1 | 1];
+  }
+  vector<int> a = evaluate(derivative(up[1]), x);
+  for (int i = 0; i < n; ++i) {
+    a[i] = mul(y[i], inv(a[i]));
+  }
+  vector<vector<int>> down(n * 2);
+  for (int i = 0; i < n; ++i) {
+    down[i + n] = vector<int>(1, a[i]);
+  }
+  for (int i = n - 1; i; --i) {
+    down[i] = down[i << 1] * up[i << 1 | 1] + down[i << 1 | 1] * up[i << 1];
+  }
+  return down[1];
 }
 
 ```
@@ -787,6 +1546,53 @@ int main() {
 }
 ```
 
+### 高斯消元
+
+```c++
+#include <bits/stdc++.h>
+using namespace std;
+const int N = 510;
+int n;
+bitset<N << 1> a[N];
+int main() {
+	scanf("%d", &n);
+	for(int i = 1; i <= n; i ++) {
+		for(int j = 1; j <= n; j ++) {
+			int x; scanf("%d", &x);
+			if(x) a[i].set(j);
+		}
+	}
+	for(int i = 1; i <= n; i ++) {
+		a[i][n + i] = 1;
+	}
+	for(int i = 1; i <= n; i ++) {
+		for(int j = i + 1; j <= n; j ++) {
+			if(a[j][i] == 0) continue;
+			if(a[i][i] == 0) swap(a[i], a[j]);
+			else a[j] ^= a[i];
+		}
+	}
+	for(int i = n; i >= 1; i --) if(a[i][i] == 1) {
+		for(int j = i + 1; j <= n; j ++) {
+			if(a[i][j] == 1) a[i] ^= a[j];
+		}
+	}
+	// for(int i = 1; i <= n; i ++) {
+	// 	for(int j = 1; j <= n * 2; j ++)
+	// 		printf("%d ", a[i][j]);
+	// 	puts("");
+	// }
+	for(int i = 1; i <= n; i ++) {
+		if(a[i][i] == 0) {printf("-1\n"); return 0;}
+	}
+	for(int i = 1; i <= n; i ++) {
+		for(int j = 1 + n; j <= n * 2; j ++)
+			if(a[i][j] == 1) printf("%d ", j - n);
+		puts("");
+	}
+}
+```
+
 
 
 ### 线性基
@@ -815,6 +1621,12 @@ struct linear_basis {
     }
 }T;
 ```
+
+### 康托展开
+
+$$
+\sum_{i = 1}^{n} sum_{a[i]} \times (n - i) !
+$$
 
 
 
@@ -1303,6 +2115,27 @@ void modify(int x, int y, ll d) {
 }
 ```
 
+### 笛卡尔树
+
+```cpp
+void build() {
+	stack<int> st;
+	int root = 0;
+	for (int i = 1; i < n; i++) {
+		int last = 0;
+		while (!st.empty() && ht[st.top()] > ht[i]) {
+			last = st.top();
+			st.pop();
+		}
+		if (!st.empty()) r[st.top()] = i;
+		else root = i;
+		l[i] = last;
+		st.push(i);
+	}
+	dfs(root, 1, n - 1);
+}
+```
+
 
 
 ### 数组链表
@@ -1668,6 +2501,84 @@ int main() {
 }
 ```
 
+### 点分治
+
+```c++
+#include <bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+
+const int N = 101000;
+int n, sz[N], maxs[N], L;
+vector<pair<int, int>> e[N];
+bool del[N];
+ll ans;
+
+void solve(int u, int s) {
+	int ms = s + 1, root = -1;
+	function<void(int, int)> dfs1 = [&](int u, int par) {
+		sz[u] = 1;
+		maxs[u] = 0;
+		for (auto [v, w]: e[u]) {
+			if (del[v] || v == par) continue;
+			dfs1(v, u);
+			sz[u] += sz[v];
+			maxs[u] = max(maxs[u], sz[v]);
+		}
+		maxs[u] = max(maxs[u], s - sz[u]);
+		if (maxs[u] < ms) ms = maxs[u], root = u;
+	};
+	dfs1(u, -1);
+	vector<int> d1, d2;
+	d1.push_back(0);
+	auto calc = [&](vector<int> &d) {
+		sort(d.begin(), d.end());
+		int m = d.size();
+		int r = m - 1;
+		ll ans = 0;
+		for (int i = 0; i < m; i++) {
+			while (r >= 0 && d[i] + d[r] > L) --r;
+			if (i < r) ans += r - i;
+		}
+		return ans;
+	};
+	for (auto [v, w] : e[root]) {
+		if (del[v]) continue;
+		d2.clear();
+		function<void(int, int, int)> dfs2 = [&](int u, int par, int dep) {
+			sz[u] = 1;
+			d1.push_back(dep);
+			d2.push_back(dep);
+			for (auto [v, w] : e[u]) {
+				if (del[v] || v == par) continue;
+				sz[u] += sz[v];
+				dfs2(v, u, dep + w);
+			}
+		};
+		dfs2(v, root, w);
+		ans -= calc(d2);
+	}
+	ans += calc(d1);
+	del[root] = true;
+	for (auto [v, w] : e[root]) {
+		if (!del[v]) solve(v, sz[v]);
+	}
+}
+
+int main() {
+	scanf("%d", &n);
+	for (int i = 1; i < n; i++) {
+		int u, v, w;
+		scanf("%d%d%d", &u, &v, &w);
+		e[u].push_back(make_pair(v, w));
+		e[v].push_back(make_pair(u, w));
+	}
+	scanf("%d", &L);
+	solve(1, n);
+	printf("%lld\n", ans);
+}
+```
+
 
 
 ## 字符串
@@ -1798,6 +2709,184 @@ int main() {
 }
 ```
 
+### ACAM
+
+```C++
+#include <bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+
+const int M = 26, N = 210000;
+struct node {
+	node *son[M], *go[M], *fail;
+	int cnt;
+}pool[N], *cur = pool, *d[N], *q[N], *root;
+
+node *newnode() {
+	return cur++;
+}
+int t, n;
+char tt[N], s[N * 10];
+
+void build() {
+	t = 0;
+	q[t++] = root;
+	for (int i = 0; i < t; i++) {
+		node *u = q[i];
+		for (int j = 0; j < M; j++) {
+			if (u->son[j]) {
+				u->go[j] = u->son[j];
+				if (u != root) u->go[j]->fail = u->fail->go[j];
+				else u->go[j]->fail = root;
+				q[t++] = u->son[j];
+			}
+			else {
+				if (u != root) u->go[j] = u->fail->go[j];
+				else u->go[j] = root;
+			}
+		}
+	}	
+}
+
+int main() {
+	scanf("%d", &n);
+	root = newnode();
+	for (int i = 0; i < n; i++) {
+		scanf("%s", tt);
+		int m = strlen(tt);
+		node *p = root;
+		for (int j = 0; j < m; j++) {
+			int w = tt[j] - 'a';
+			if (!p->son[w]) p->son[w] = newnode();
+			p = p->son[w];
+		}
+		d[i] = p;
+	}
+	build();
+	scanf("%s", s);
+	node *p = root;
+	int l = strlen(s);
+	for (int i = 0; i < l; i++) {
+		p = p->go[s[i] - 'a'];
+		p->cnt++;
+	}
+	for (int i = t - 1; i; i--) {
+		q[i]->fail->cnt += q[i]->cnt;
+	}
+	for (int i = 0; i < n; i++) {
+		printf("%d\n", d[i]->cnt);
+	}
+}
+```
+
+### SA
+
+```c++
+const int N = 1e6 + 10;
+char s[N];
+int rk[N], sa[N], n;
+// ht[i] = LCP(sa[i], sa[i - 1])
+// LCP(sa[i], sa[j]) = min(ht[i] ~ ht[j])
+//本质不同字串个数：n*(n + 1) / 2 - sum(ht);
+//可重叠最长重复子串： max(ht);
+//不可重叠：二分长度L，将相邻两项ht大于等于L的分组，找到每组中最早出现和最晚出现的，判断是否重叠
+//可重叠重复k次子串，二分长度L，将相邻两项ht大于等于L的分组，是否有一组大于k
+//多串用分隔符链接，二分答案，两个串可以用并查集维护所在组的信息。
+//平方串：枚举长度L，分段，每段求LCP和LCS，能连起来就是平方串，有多少个平方串也可以顺便求出来
+void buildSA(char *s, int *sa, int *rk, int *ht, int n, int m = 128) {
+	static int x[N], y[N], c[N];
+	s[n] = 0;
+	for (int i = 0; i < m; i++) c[i] = 0;
+	for (int i = 0; i < n; i++) c[x[i] = s[i]]++;
+	for (int i = 1; i < m; i++) c[i] += c[i - 1];
+	for (int i = n - 1; i >= 0; i--) sa[--c[x[i]]] = i;
+	for (int k = 1; k < n; k <<= 1) {
+		int p=0;
+		for (int i = n - 1; i >= n - k; i--) y[p++] = i;
+		for (int i = 0; i < n; i++) if (sa[i] >= k) y[p++] = sa[i] - k;
+		for (int i = 0; i < m; i++) c[i] = 0;
+		for (int i = 0; i < n; i++) c[x[y[i]]]++;
+		for (int i = 1; i < m; i++) c[i] += c[i - 1];
+		for (int i = n - 1; i >= 0; i--) sa[--c[x[y[i]]]] = y[i];
+		swap(x, y);
+		p = 1; x[sa[0]] = 0; y[n] = -1;
+		for (int i = 1; i < n; i++) {
+			if (y[sa[i - 1]] == y[sa[i]] && y[sa[i - 1] + k] == y[sa[i] + k])
+				x[sa[i]] = p - 1;
+			else
+				x[sa[i]] = p++;
+		}
+		if (p == n) break;
+		m = p;
+	}
+	for (int i = 0; i < n; i++) rk[sa[i]] = i;
+	int k = 0;
+	for (int i = 0; i < n; i++) {
+		k = max(k - 1, 0);
+		if (rk[i] == 0) continue;
+		int j = sa[rk[i] - 1];
+		while (s[i + k] == s[j + k]) k++;
+		ht[rk[i]] = k;
+	}
+}
+```
+
+### SA(tarjen)
+
+```c++
+const int N = 1e6 + 10;
+struct Suffix{
+	int ht[N],rk[N],sa[N],y[N],c[N];
+    int n,m;
+    char s[N];
+	void init(){
+        n=strlen(s+1);
+        m=300;
+		for(int i=0;i<=m;i++) c[i]=0;
+		for(int i=0;i<=2*n;i++) y[i]=0;
+		for(int i=1;i<=n;i++) c[rk[i]=s[i]]++;
+		for(int i=1;i<=m;i++) c[i]+=c[i-1];
+		for(int i=n;i>=1;i--) sa[c[rk[i]]--]=i;
+		for(int k=1;k<=n;k<<=1){
+			int p=0;
+			for(int i=n-k+1;i<=n;i++) y[++p]=i;
+			for(int i=1;i<=n;i++){
+				if(sa[i]>k){
+					y[++p]=sa[i]-k;
+				}
+			} 
+			for(int i=0;i<=m;i++) c[i]=0;
+			for(int i=1;i<=n;i++) c[rk[i]]++;
+			for(int i=1;i<=m;i++) c[i]+=c[i-1];
+			for(int i=n;i>=1;i--) sa[c[rk[y[i]]]--]=y[i];
+			for(int i=0;i<=n;i++) swap(rk[i],y[i]);
+			rk[sa[1]]=p=1;
+			for(int i=2;i<=n;i++){
+				rk[sa[i]]=(y[sa[i]] == y[sa[i-1]] && y[sa[i]+k] == y[sa[i-1]+k] ? p : ++p);
+			}
+			if(p>=n) break;
+			m=p;
+		}
+		for(int i=1,k=0;i<=n;i++){
+			if(k)k--;
+			int j=sa[rk[i]-1];
+			while(s[i+k] == s[j+k] )k++;
+			ht[rk[i]] = k;
+		}
+	}
+    void writ()
+    {
+        printf("%s\n",s+1);
+        for(int i=1;i<=n;i++)cout<<sa[i]<<" ";;cout<<"\n";
+        for(int i=1;i<=n;i++)cout<<ht[i]<<" ";;cout<<"\n";
+        for(int i=1;i<=n;i++)cout<<rk[i]<<" ";;cout<<"\n";
+    }
+    
+};
+Suffix suf;
+
+```
+
 
 
 ## DP
@@ -1805,30 +2894,14 @@ int main() {
 ### 最长上升子序列的nlogn算法（含二分查找）
 
 ```c++
-#include <bits/stdc++.h>
-using namespace std;
-const int maxn=1e4+10;
-int dp[maxn],sum[maxn];
-struct task{int bg,ed;};
-bool cmp(task a,task b){return a.bg>b.bg;}
-int main(){
-    int n,k,num=0;
-    cin>>n>>k;
-    task a[k+1];
-    for(int i=1;i<=k;i++){
-        cin>>a[i].bg>>a[i].ed;
-        sum[a[i].bg]++;
-    }
-    sort(a+1,a+1+k,cmp);
-    dp[n+1]=0;
-    for(int i=n;i>=1;i--){
-        if(sum[i]==0){dp[i]=dp[i+1]+1;}
-        for(int j=1;j<=sum[i];j++){
-            dp[i]=max(dp[i+a[++num].ed],dp[i]);
-        }
-    }cout<<dp[1]<<endl;
-    return 0;
-}
+for(int j = l + 1; j < r; j ++)
+            if (a[j] >= a[l] && a[j] <= a[r]) // a[j]满足条件，可以出现在区间中
+			{
+				auto pos = upper_bound(LIS.begin(), LIS.end(), a[j]);
+				if (pos == LIS.end()) LIS.push_back(a[j]);
+				else *pos = a[j];
+			}
+		ans += (r-l-1) - LIS.size(); // 此段答案为段长-LIS长度
 ```
 
 ### DAG上的动态规划
@@ -1849,6 +2922,35 @@ void DP(){
     }
 }
 ```
+
+### 单调队列优化
+
+```c++
+#include <bits/stdc++.h>
+using namespace std;
+const int N = 1e4 + 10;
+int n, m;
+int dp[N], c[N][2];
+int main() {
+    scanf("%d%d", &n, &m);
+    for(int i = 1; i <= n; i ++) {
+        int v, w, t; scanf("%d%d%d", &v, &w, &t);
+        for(int j = 0; j < v; j ++) {
+            int k = 0, l = 1;
+            for(int p = j, x = 1; p <= m; p += v, x ++) {
+                int e = dp[p] - x * w, r = x + t;
+                for(; k >= l && c[k][0] <= e; k --);
+                c[++k][0] = e, c[k][1] = r;
+                dp[p] = c[l][0] + x * w;
+                for(; l <= k && c[l][1] <= x; l ++);
+            }
+        }
+    }
+    printf("%d", dp[m]);
+}
+```
+
+
 
 ### 数位dp模板
 
@@ -1920,6 +3022,32 @@ for(int i = 0; i < M; i ++) {
 			if(j & (1 << i)) 
 				f[j] += f[j - (1 << i)];
 	}
+```
+
+## 博弈
+
+
+
+```c++
+int sg[1010], n = 100;
+int calcsg(int x) {
+    if(x == 0 || x % 4 == 1 || x % 4 == 2) return x;
+    if(x % 4 == 3) return x + 1;
+    else return x - 1;
+}
+
+int main() {
+    for(int i = 1; i <= n; i ++) {
+        set<int> s;
+        for(int j = 0; j < i; j ++)
+            s.insert(sg[i]);
+        for(int j = 1; j < i; j ++)
+            s.insert(sg[j] ^ sg[i - j]);
+        while(!s.count(sg[i])) sg[i] ++;
+        printf("%d %d\n", i, sg[i]);
+        assert(sg[i] == calcsg(i));
+    }
+}
 ```
 
 
@@ -2018,6 +3146,92 @@ ll gcd(ll a, ll b){return b?gcd(b,a%b):a;}
 
 ```
 
+### midint
+
+````c++
+template<int MOD, int RT> struct mint {
+	static const int mod = MOD;
+	static constexpr mint rt() { return RT; } // primitive root for FFT
+	int v; explicit operator int() const { return v; } // explicit -> don't silently convert to int
+	mint():v(0) {}
+	mint(ll _v) { v = int((-MOD < _v && _v < MOD) ? _v : _v % MOD);
+		if (v < 0) v += MOD; }
+	bool operator==(const mint& o) const {
+		return v == o.v; }
+	friend bool operator!=(const mint& a, const mint& b) { 
+		return !(a == b); }
+	friend bool operator<(const mint& a, const mint& b) { 
+		return a.v < b.v; }
+   
+	mint& operator+=(const mint& o) { 
+		if ((v += o.v) >= MOD) v -= MOD; 
+		return *this; }
+	mint& operator-=(const mint& o) { 
+		if ((v -= o.v) < 0) v += MOD; 
+		return *this; }
+	mint& operator*=(const mint& o) { 
+		v = int((ll)v*o.v%MOD); return *this; }
+	mint& operator/=(const mint& o) { return (*this) *= inv(o); }
+	friend mint pow(mint a, ll p) {
+		mint ans = 1; assert(p >= 0);
+		for (; p; p /= 2, a *= a) if (p&1) ans *= a;
+		return ans; }
+	friend mint inv(const mint& a) { assert(a.v != 0); 
+		return pow(a,MOD-2); }
+		
+	mint operator-() const { return mint(-v); }
+	mint& operator++() { return *this += 1; }
+	mint& operator--() { return *this -= 1; }
+	friend mint operator+(mint a, const mint& b) { return a += b; }
+	friend mint operator-(mint a, const mint& b) { return a -= b; }
+	friend mint operator*(mint a, const mint& b) { return a *= b; }
+	friend mint operator/(mint a, const mint& b) { return a /= b; }
+};
+````
+
+### simp
+
+```c++
+const int MOD=998244353; 
+using mi = mint<MOD,5>; // 5 is primitive root for both common mods
+
+namespace simp {
+	vector<mi> fac,ifac,invn;
+	void check(int x) {
+		if (fac.empty()) {
+			fac={mi(1),mi(1)};
+			ifac={mi(1),mi(1)};
+			invn={mi(0),mi(1)};
+		}
+		while (SZ(fac)<=x) {
+			int n=SZ(fac),m=SZ(fac)*2;
+			fac.resize(m);
+			ifac.resize(m);
+			invn.resize(m);
+			for (int i=n;i<m;i++) {
+				fac[i]=fac[i-1]*mi(i);
+				invn[i]=mi(MOD-MOD/i)*invn[MOD%i];
+				ifac[i]=ifac[i-1]*invn[i];
+			}
+		}
+	}
+	mi gfac(int x) {
+		check(x); return fac[x];
+	}
+	mi ginv(int x) {
+		check(x); return invn[x];
+	}
+	mi gifac(int x) {
+		check(x); return ifac[x];
+	}
+	mi binom(int n,int m) {
+		if (m < 0 || m > n) return mi(0);
+		return gfac(n)*gifac(m)*gifac(n - m);
+	}
+}
+
+```
+
 
 
 ## stl
@@ -2062,5 +3276,49 @@ g++ bf.cpp -o bf -g
 if not errorlevel 1 goto loop
 pause
 goto loop
+```
+
+卡时
+
+```c++
+struct gettime{
+    clock_t star,ends;
+    void begin(){
+        star = clock();
+    }
+    void end(){
+        ends = clock();
+        cout <<"Running Time : "<<(double)(ends - star)/ CLOCKS_PER_SEC << endl;
+    }
+} tim;
+int main()
+{
+    tim.begin();
+    tim.end();
+    return 0;
+
+}
+```
+
+### c++对拍
+
+```c++
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
+using namespace std;
+int main()
+{
+    while (1) //一直循环，直到找到不一样的数据
+    {
+        system("data.exe > in.txt");
+        system("baoli.exe < in.txt > baoli.txt");
+        system("std.exe < in.txt > std.txt");
+        if (system("fc std.txt baoli.txt")) //当 fc 返回1时，说明这时数据不一样
+            break;                          //不一样就跳出循环
+    }
+    return 0;
+}
+
 ```
 
