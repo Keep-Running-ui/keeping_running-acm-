@@ -3322,7 +3322,9 @@ int main()
 
 ```
 
-### 随机化生成数
+### 随机数生成
+
 ```c++
 std::mt19937_64 rng(std::chrono::steady_clock::now().time_since_epoch().count());
 ```
+
